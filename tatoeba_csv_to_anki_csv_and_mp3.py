@@ -5,11 +5,20 @@ import urllib.request
 import shutil
 import re
 import os
+import csv
 
 # Set the location where the csv file is
 fname = "export_list_8397eng.csv"
+
 # Set audio language
 audio_language = "hun"
+
+# What must we do with duplicated sentences (multiple translations)?
+# Options:
+# "merge" to keep one card with all translations merged on it
+# "remove" to keep only a single card with a single translation
+# "nothing" to keep all duplicated cards
+duplicates = "merge"
 
 # Instructions:
 # download your list in CSV format on the Tatoeba website
@@ -27,8 +36,8 @@ audio_language = "hun"
 
 # Read CSV file
 with open(fname) as f:
-    content = f.readlines()
-cards = [x.strip() for x in content]
+    cards = csv.reader(f, delimiter='\t', quotechar='"')
+    cards = [list(card) for card in cards]
 
 # Get path of the CSV file
 path_csv_file = os.path.dirname(fname)
@@ -39,15 +48,35 @@ try:
 except FileExistsError:
     pass
 
-
+tatoeba_id = None
+no_cards_removed = 0
 for i in range(len(cards)):
     print("Proccessing card", i+1, "out of", len(cards))
-    try:
-        tatoeba_id = re.search('\d+?\\t', cards[i]).group()[:-1]
-        cards[i] = re.sub('\d+?\\t', "", cards[i], 1)
-    except AttributeError:
-        print("Warning: unable to get a sentence id")
-        continue
+    i -= no_cards_removed
+    new_tatoeba_id = cards[i][0]
+    if re.match('^\d+$', new_tatoeba_id) is None:
+        raise("Unable to parse sentence id. Did you enable sentece id?")
+
+    if new_tatoeba_id == tatoeba_id:
+        if duplicates == "remove":
+            cards.pop(i)
+            no_cards_removed += 1
+            print("Removed a duplicated card")
+            continue
+        elif duplicates == "merge":
+            cards[i-1][2] += " " + cards[i][2]
+            cards.pop(i)
+            no_cards_removed += 1
+            print("Merged a duplicated card")
+            continue
+        elif duplicates == "nothing":
+            print("Keeping a duplicated card")
+        else:
+            raise("invalid duplicate variable")
+
+
+
+    tatoeba_id = new_tatoeba_id
 
     mp3_uname = str(tatoeba_id) + ".mp3"
     mp3_fname = "tatoeba_" + mp3_uname
@@ -65,11 +94,12 @@ for i in range(len(cards)):
         except urllib.request.HTTPError:
             print("Notice: could not find audio fo Tatoeba sentence",
                   url)
-            cards[i] = '""\t' + cards[i]
+            cards[i][0] = ''
             continue
 
-    cards[i] = '"[sound:' + mp3_fname + ']"\t' + cards[i]
+    cards[i][0] = '[sound:' + mp3_fname + ']'
 
 with open(fname + "_with_audio_tatoeba.csv", 'w') as f:
+    cards = ['"'+'"\t"'.join(card)+'"' for card in cards]
     f.write('\n'.join(cards))
 
