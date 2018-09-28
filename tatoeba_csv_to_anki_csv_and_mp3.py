@@ -1,7 +1,17 @@
 # Copyright Marco Inacio 2018
 # Licensed under GNU GPL 3 https://www.gnu.org/licenses/gpl-3.0.en.html
 
-import urllib.request
+# This is script works natively with Python 3
+# If using Python 2, you'll have to install the package called six
+
+try:
+    import urllib.request
+    from urllib.request import HTTPError
+    dir_error = FileExistsError
+except ImportError:
+    from six.moves import urllib
+    from urllib2 import HTTPError
+    dir_error = OSError
 import shutil
 import re
 import os
@@ -45,7 +55,7 @@ path_csv_file = os.path.dirname(fname)
 # Create dir to store audio files
 try:
     os.mkdir(os.path.join(path_csv_file, "audio_files"))
-except FileExistsError:
+except dir_error:
     pass
 
 tatoeba_id = None
@@ -91,8 +101,8 @@ for i in range(len(cards)):
             with urllib.request.urlopen(url) as response:
                 with open(mp3_fname_plus_path, 'wb') as mp3_stream:
                     shutil.copyfileobj(response, mp3_stream)
-        except urllib.request.HTTPError:
-            print("Notice: could not find audio fo Tatoeba sentence",
+        except HTTPError:
+            print("Notice: could not find audio for Tatoeba sentence",
                   url)
             cards[i][0] = ''
             continue
