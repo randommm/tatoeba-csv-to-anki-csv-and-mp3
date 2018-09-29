@@ -2,114 +2,158 @@
 # Licensed under GNU GPL 3 https://www.gnu.org/licenses/gpl-3.0.en.html
 
 # This is script works natively with Python 3
-# If using Python 2, you'll have to install the package called six
+# and should also work with lastest Python 2.7
+from __future__ import print_function
 
 try:
-    import urllib.request
-    from urllib.request import HTTPError
-    dir_error = FileExistsError
-except ImportError:
-    from six.moves import urllib
-    from urllib2 import HTTPError
-    dir_error = OSError
-import shutil
-import re
-import os
-import csv
+    try:
+        from urllib.request import urlopen
+        from urllib.request import HTTPError
+        dir_error = FileExistsError
+    except ImportError:
+        from urllib2 import urlopen
+        from urllib2 import HTTPError
+        dir_error = OSError
+        input = raw_input
+    import shutil
+    import re
+    import os
+    import csv
 
-# Set the location where the csv file is
-fname = "export_list_8397eng.csv"
+    print("""
+    ----------- Instructions ------------
 
-# Set audio language
-audio_language = "hun"
+    download your list in CSV format on the Tatoeba website,
+    enable id and translation while downloading and the run this script.
+    Once the script is finshed, you will have a file with the same
+    name of the original one plus a suffix "_with_audio_tatoeba.csv"
+    and an audio folder "audio_files" on the same directory
+    of the original file.
 
-# What must we do with duplicated sentences (multiple translations)?
-# Options:
-# "merge" to keep one card with all translations merged on it
-# "remove" to keep only a single card with a single translation
-# "nothing" to keep all duplicated cards
-duplicates = "merge"
+    Import this new csv file to using Anki menu "File > Import..."
+    and move the audio files (not the folder itself) into the
+    "collection.media" folder of your Anki profile data directory
 
-# Instructions:
-# download your list in CSV format on the Tatoeba website
-# enable id and translation while downloading and the run this script.
-# Once the script is finshed, you will have a file with the same
-# name of the original one plus a suffix "_with_audio_tatoeba.csv"
-# and an audio folder "audio_files" on the same directory
-# of the original file.
-# Import this new csv file to using Anki menu "File > Import..."
-# and move the audio files (not the folder) into the
-# "collection.media" folder on your Anki profile data directory
-# (in Linux this folder might be located at
-# /home/your_username/.local/share/Anki2/User\ 1
+    You can find your Anki profile folder by openining Anki, then
+    Tools > Preferences, open tab backup and then clicking
+    "Open backup folder"
+    It will open the file explorer, you need to go one folder up and
+    then to folder "collection.media"
 
+    On Linux this folder might be located at
+    /home/your_username/.local/share/Anki2/User\ 1
+    """)
 
-# Read CSV file
-with open(fname) as f:
-    cards = csv.reader(f, delimiter='\t', quotechar='"')
-    cards = [list(card) for card in cards]
+    # Set the location where the csv file is
+    fname = ""
 
-# Get path of the CSV file
-path_csv_file = os.path.dirname(fname)
+    # Set audio language
+    audio_language = ""
 
-# Create dir to store audio files
-try:
-    os.mkdir(os.path.join(path_csv_file, "audio_files"))
-except dir_error:
-    pass
+    # What must we do with duplicated sentences (multiple translations)?
+    # Options:
+    # "merge" to keep one card with all translations merged on it
+    # "remove" to keep only a single card with a single translation
+    # "nothing" to keep all duplicated cards
+    duplicates = ""
 
-tatoeba_id = None
-no_cards_removed = 0
-for i in range(len(cards)):
-    print("Proccessing card", i+1, "out of", len(cards))
-    i -= no_cards_removed
-    new_tatoeba_id = cards[i][0]
-    if re.match('^\d+$', new_tatoeba_id) is None:
-        raise("Unable to parse sentence id. Did you enable sentece id?")
+    while fname == "":
+        print("Type the name of the csv file then press ENTER.")
+        print("The name must contain the file extension.")
+        print("Example: export_list_8397eng.csv")
+        fname = input("")
 
-    if new_tatoeba_id == tatoeba_id:
-        if duplicates == "remove":
-            cards.pop(i)
-            no_cards_removed += 1
-            print("Removed a duplicated card")
-            continue
-        elif duplicates == "merge":
-            cards[i-1][2] += " " + cards[i][2]
-            cards.pop(i)
-            no_cards_removed += 1
-            print("Merged a duplicated card")
-            continue
-        elif duplicates == "nothing":
-            print("Keeping a duplicated card")
-        else:
-            raise("invalid duplicate variable")
+    while audio_language == "":
+        print("Type the acronym language of translation to be download")
+        print("Example: hun")
+        audio_language = input("")
+
+    while duplicates == "":
+        print("Type what to do with duplicated translations.")
+        print("Options:")
+        print("merge: to keep one card with all translations merged on it")
+        print("remove: to keep only a single card with a single translation")
+        print("nothing: to keep all duplicated cards")
+        print("Example: merge")
+        duplicates = input("")
+        if duplicates != "merge" and duplicates != "remove" and duplicates != "nothing":
+            print("Invalid option! Must be either merge, remove or nothing")
+            duplicates = ""
 
 
 
-    tatoeba_id = new_tatoeba_id
+    # Read CSV file
+    with open(fname) as f:
+        cards = csv.reader(f, delimiter='\t', quotechar='"')
+        cards = [list(card) for card in cards]
 
-    mp3_uname = str(tatoeba_id) + ".mp3"
-    mp3_fname = "tatoeba_" + mp3_uname
-    mp3_fname_plus_path = os.path.join(path_csv_file, "audio_files",
-        mp3_fname)
+    # Get path of the CSV file
+    path_csv_file = os.path.dirname(fname)
 
-    url = "https://audio.tatoeba.org/sentences/"
-    url += audio_language + "/" + mp3_uname
+    # Create dir to store audio files
+    try:
+        os.mkdir(os.path.join(path_csv_file, "audio_files"))
+    except dir_error:
+        pass
 
-    if not os.path.isfile(mp3_fname_plus_path):
-        try:
-            with urllib.request.urlopen(url) as response:
-                with open(mp3_fname_plus_path, 'wb') as mp3_stream:
-                    shutil.copyfileobj(response, mp3_stream)
-        except HTTPError:
-            print("Notice: could not find audio for Tatoeba sentence",
-                  url)
-            cards[i][0] = ''
-            continue
+    tatoeba_id = None
+    no_cards_removed = 0
+    for i in range(len(cards)):
+        print("Proccessing card", i+1, "out of", len(cards))
+        i -= no_cards_removed
+        new_tatoeba_id = cards[i][0]
+        if re.match('^\d+$', new_tatoeba_id) is None:
+            raise("Unable to parse sentence id. Did you enable sentece id?")
 
-    cards[i][0] = '[sound:' + mp3_fname + ']'
+        if new_tatoeba_id == tatoeba_id:
+            if duplicates == "remove":
+                cards.pop(i)
+                no_cards_removed += 1
+                print("Removed a duplicated card")
+                continue
+            elif duplicates == "merge":
+                cards[i-1][2] += " " + cards[i][2]
+                cards.pop(i)
+                no_cards_removed += 1
+                print("Merged a duplicated card")
+                continue
+            elif duplicates == "nothing":
+                print("Keeping a duplicated card")
+            else:
+                raise("invalid duplicate variable")
 
-with open(fname + "_with_audio_tatoeba.csv", 'w') as f:
-    cards = ['"'+'"\t"'.join(card)+'"' for card in cards]
-    f.write('\n'.join(cards))
 
+
+        tatoeba_id = new_tatoeba_id
+
+        mp3_uname = str(tatoeba_id) + ".mp3"
+        mp3_fname = "tatoeba_" + mp3_uname
+        mp3_fname_plus_path = os.path.join(path_csv_file, "audio_files",
+            mp3_fname)
+
+        url = "https://audio.tatoeba.org/sentences/"
+        url += audio_language + "/" + mp3_uname
+
+        if not os.path.isfile(mp3_fname_plus_path):
+            try:
+                with urlopen(url) as response:
+                    with open(mp3_fname_plus_path, 'wb') as mp3_stream:
+                        shutil.copyfileobj(response, mp3_stream)
+            except HTTPError:
+                print("Notice: could not find audio for Tatoeba sentence",
+                      url)
+                cards[i][0] = ''
+                continue
+        cards[i][0] = '[sound:' + mp3_fname + ']'
+
+    with open(fname + "_with_audio_tatoeba.csv", 'w') as f:
+        cards = ['"'+'"\t"'.join(card)+'"' for card in cards]
+        f.write('\n'.join(cards))
+
+    print("Script finished sucefully!")
+    input("Press ENTER to exit.")
+
+except Exception as err:
+    print("Script failed with error:\n\n", err)
+    input("Press ENTER to exit.")
+    raise err
