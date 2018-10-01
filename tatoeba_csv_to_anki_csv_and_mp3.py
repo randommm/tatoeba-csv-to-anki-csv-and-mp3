@@ -20,6 +20,16 @@ try:
     import os
     import csv
 
+    import platform
+    if platform.system() == "Windows":
+        # Workaround since Python does not work with Let's Encrypt certs
+        # on Windows yet.
+        import ssl
+        if (not os.environ.get('PYTHONHTTPSVERIFY', '') and
+            getattr(ssl, '_create_unverified_context', None)):
+            ssl._create_default_https_context = ssl._create_unverified_context
+
+
     print("""
     ----------- Instructions ------------
 
@@ -83,7 +93,7 @@ try:
 
 
     # Read CSV file
-    with open(fname) as f:
+    with open(fname, encoding="utf8") as f:
         cards = csv.reader(f, delimiter='\t', quotechar='"')
         cards = [list(card) for card in cards]
 
@@ -146,7 +156,7 @@ try:
                 continue
         cards[i][0] = '[sound:' + mp3_fname + ']'
 
-    with open(fname + "_with_audio_tatoeba.csv", 'w') as f:
+    with open(fname + "_with_audio_tatoeba.csv", 'w', encoding="utf8") as f:
         cards = ['"'+'"\t"'.join(card)+'"' for card in cards]
         f.write('\n'.join(cards))
 
