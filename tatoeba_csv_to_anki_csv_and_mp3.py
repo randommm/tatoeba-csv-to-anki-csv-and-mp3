@@ -1,8 +1,10 @@
 # Copyright Marco Inacio 2018
 # Licensed under GNU GPL 3 https://www.gnu.org/licenses/gpl-3.0.en.html
 
-# This is script works natively with Python 3
-# and should also work with lastest Python 2.7
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+# This is script works natively with Python 3 on
+# and should also work with lastest Python 2.7 (except on Windows)
 from __future__ import print_function
 
 try:
@@ -10,11 +12,13 @@ try:
         from urllib.request import urlopen
         from urllib.request import HTTPError
         dir_error = FileExistsError
+        openf = open
     except ImportError:
         from urllib2 import urlopen
         from urllib2 import HTTPError
         dir_error = OSError
         input = raw_input
+        openf = lambda file, mode='r', encoding='': open(file, mode)
     import shutil
     import re
     import os
@@ -74,7 +78,8 @@ try:
         fname = input("")
 
     while audio_language == "":
-        print("Type the acronym language of translation to be download")
+        print("Type the acronym of language in which you want the",
+              "audio to be")
         print("Example: hun")
         audio_language = input("")
 
@@ -93,7 +98,7 @@ try:
 
 
     # Read CSV file
-    with open(fname, encoding="utf8") as f:
+    with openf(fname, encoding="utf8") as f:
         cards = csv.reader(f, delimiter='\t', quotechar='"')
         cards = [list(card) for card in cards]
 
@@ -156,7 +161,7 @@ try:
                 continue
         cards[i][0] = '[sound:' + mp3_fname + ']'
 
-    with open(fname + "_with_audio_tatoeba.csv", 'w', encoding="utf8") as f:
+    with openf(fname + "_with_audio_tatoeba.csv", 'w', encoding="utf8") as f:
         cards = ['"'+'"\t"'.join(card)+'"' for card in cards]
         f.write('\n'.join(cards))
 
