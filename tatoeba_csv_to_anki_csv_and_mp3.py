@@ -113,8 +113,9 @@ try:
 
     tatoeba_id = None
     no_cards_removed = 0
-    for i in range(len(cards)):
-        print("Proccessing card", i+1, "out of", len(cards))
+    len_cards = len(cards)
+    for i in range(len_cards):
+        print("Proccessing card", i+1, "out of", len_cards)
         i -= no_cards_removed
         new_tatoeba_id = cards[i][0]
         if re.match('^\d+$', new_tatoeba_id) is None:
